@@ -1,0 +1,8 @@
+{
+  "name": "RoadWatch Teluk Kuantan",
+  "description": "Monitoring dashboard for road damage with interactive mapping and reporting.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
