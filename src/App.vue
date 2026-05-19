@@ -5,16 +5,14 @@ import {
   LayoutDashboard, 
   Map as MapIcon, 
   RotateCcw, 
-  Zap,
-  ZapOff,
-  AlertTriangle,
   CheckCircle2, 
   Clock, 
   Camera, 
   ChevronRight, 
   X, 
   Filter,
-  Lightbulb
+  Lightbulb,
+  AlertTriangle
 } from 'lucide-vue-next'
 
 // --- TYPES ---
@@ -178,13 +176,31 @@ const initMap = () => {
   }).addTo(map);
 
   SAMPLE_DATA.forEach(item => {
-    const color = item.condition === 'Baik' ? '#10B981' : '#EF4444';
+    const color = item.condition === 'Baik' ? '#10B981' : '#171717';
     
     const icon = L.divIcon({
       className: 'custom-marker',
-      html: `<div style="background-color: ${color}; width: 14px; height: 14px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center;"></div>`,
-      iconSize: [14, 14],
-      iconAnchor: [7, 7]
+      html: `
+        <div style="
+          background-color: white; 
+          width: 32px; 
+          height: 32px; 
+          border-radius: 50%; 
+          display: flex; 
+          align-items: center; 
+          justify-content: center;
+          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+          border: 2px solid ${color};
+          transition: all 0.2s ease;
+        ">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="${item.condition === 'Baik' ? color : 'none'}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/>
+            <path d="M9 18h6"/><path d="M10 22h4"/>
+          </svg>
+        </div>
+      `,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
     });
 
     const marker = L.marker(item.coordinates, { icon }).addTo(map!);
@@ -206,7 +222,7 @@ const getStatusIcon = (status: string) => {
   switch (status) {
     case 'Aktif': return CheckCircle2;
     case 'Perbaikan': return RotateCcw;
-    default: return zapOff;
+    default: return Lightbulb;
   }
 };
 
@@ -252,7 +268,7 @@ onMounted(async () => {
             </div>
             <div class="bg-white p-3 rounded-xl border border-neutral-200 shadow-sm">
               <p class="text-[10px] text-neutral-400 uppercase font-bold">Lampu Padam</p>
-              <p class="text-2xl font-mono font-bold text-red-500">04</p>
+              <p class="text-2xl font-mono font-bold text-neutral-900">04</p>
             </div>
           </div>
         </div>
@@ -274,8 +290,13 @@ onMounted(async () => {
               >
                 {{ item.id }}
               </p>
-              <Zap v-if="item.condition === 'Baik'" class="w-4 h-4 text-emerald-500" />
-              <ZapOff v-else class="w-4 h-4 text-red-500" />
+              <Lightbulb 
+                :class="[
+                  'w-4 h-4', 
+                  item.condition === 'Baik' ? 'text-emerald-500' : (selectedPJU?.id === item.id ? 'text-white' : 'text-neutral-900')
+                ]" 
+                :fill="item.condition === 'Baik' ? 'currentColor' : 'none'"
+              />
             </div>
             <h3 class="font-bold text-sm leading-tight mb-1">{{ item.location }}</h3>
             <p class="text-xs line-clamp-1 opacity-70"
@@ -347,11 +368,10 @@ onMounted(async () => {
               <div class="flex items-center gap-4 mb-8">
                 <div class="flex-1">
                   <p class="text-[10px] font-bold text-neutral-400 uppercase mb-1">Status Sistem</p>
-                  <div class="flex items-center gap-2 p-2 rounded-lg border"
-                    :class="selectedPJU.condition === 'Baik' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-red-50 border-red-100 text-red-700'"
+                  <div class="flex items-center gap-2 p-2 rounded-lg border transition-colors"
+                    :class="selectedPJU.condition === 'Baik' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-neutral-100 border-neutral-200 text-neutral-900'"
                   >
-                    <Zap v-if="selectedPJU.condition === 'Baik'" class="w-4 h-4" />
-                    <ZapOff v-else class="w-4 h-4" />
+                    <Lightbulb class="w-4 h-4" :fill="selectedPJU.condition === 'Baik' ? 'currentColor' : 'none'" />
                     <span class="text-sm font-bold">{{ selectedPJU.condition === 'Baik' ? 'PENERANGAN AKTIF' : 'PADAM / RUSAK' }}</span>
                   </div>
                 </div>
@@ -365,11 +385,11 @@ onMounted(async () => {
 
               <div class="space-y-6">
                 <section v-if="selectedPJU.condition === 'Rusak'">
-                  <h4 class="flex items-center gap-2 text-xs font-bold uppercase text-red-500 mb-3">
+                  <h4 class="flex items-center gap-2 text-xs font-bold uppercase text-neutral-900 mb-3">
                     <AlertTriangle class="w-3 h-3" />
                     Analisis Kerusakan
                   </h4>
-                  <p class="text-neutral-700 leading-relaxed font-serif italic text-lg bg-red-50 p-4 rounded-xl border border-red-100">
+                  <p class="text-neutral-700 leading-relaxed font-serif italic text-lg bg-neutral-50 p-4 rounded-xl border border-neutral-200">
                     "{{ selectedPJU.issue }}"
                   </p>
                 </section>
