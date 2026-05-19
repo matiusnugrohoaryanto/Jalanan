@@ -1,6 +1,6 @@
 {
-  "name": "RoadWatch Teluk Kuantan",
-  "description": "Monitoring dashboard for road damage with interactive mapping and reporting.",
+  "name": "PJU Monitor Teluk Kuantan",
+  "description": "Dashboard monitoring Penerangan Jalan Umum (PJU) untuk wilayah Teluk Kuantan.",
   "requestFramePermissions": [],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
