@@ -177,7 +177,8 @@ watch(isSidebarOpen, () => {
 const initMap = () => {
   map = L.map('map-container', {
     zoomControl: false,
-    attributionControl: false
+    attributionControl: false,
+    tap: false
   }).setView([-0.5277, 101.5520], 16);
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -474,6 +475,8 @@ onMounted(async () => {
 .custom-marker {
   background: transparent;
   border: none;
+  pointer-events: auto !important;
+  cursor: pointer;
 }
 
 /* Ensure leaflet container has height */
