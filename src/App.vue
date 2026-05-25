@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, nextTick } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import L from 'leaflet'
 import { 
   LayoutDashboard, 
@@ -164,6 +164,15 @@ const isSidebarOpen = ref(true);
 let map: L.Map | null = null;
 const markers: L.Marker[] = [];
 
+// --- WATCHERS ---
+watch(isSidebarOpen, () => {
+  setTimeout(() => {
+    if (map) {
+      map.invalidateSize();
+    }
+  }, 350);
+});
+
 // --- METHODS ---
 const initMap = () => {
   map = L.map('map-container', {
@@ -213,6 +222,9 @@ const initMap = () => {
 
 const selectItem = (item: PJULight) => {
   selectedPJU.value = item;
+  if (window.innerWidth < 768) {
+    isSidebarOpen.value = false;
+  }
   if (map) {
     map.flyTo(item.coordinates, 17, { duration: 1.5 });
   }
@@ -227,18 +239,32 @@ const getStatusIcon = (status: string) => {
 };
 
 onMounted(async () => {
+  if (window.innerWidth < 768) {
+    isSidebarOpen.value = false;
+  }
   await nextTick();
   initMap();
 });
 </script>
 
 <template>
-  <div class="flex h-screen bg-[#FDFCFB] text-neutral-900 overflow-hidden font-sans">
+  <div class="relative flex h-screen w-full bg-[#FDFCFB] text-neutral-900 overflow-hidden font-sans">
     
+    <!-- --- BACKDROP FOR MOBILE SIDEBAR --- -->
+    <div 
+      v-if="isSidebarOpen"
+      @click="isSidebarOpen = false"
+      class="fixed inset-0 bg-neutral-950/40 backdrop-blur-[2px] z-25 md:hidden transition-opacity duration-300 pointer-events-auto"
+    ></div>
+
     <!-- --- SIDEBAR --- -->
     <aside 
-      class="bg-white border-r border-neutral-200 transition-all duration-300 ease-in-out flex flex-col z-20"
-      :class="isSidebarOpen ? 'w-[400px]' : 'w-16'"
+      class="bg-white transition-all duration-300 ease-in-out flex flex-col z-30 absolute md:relative h-full top-0 left-0 border-r border-neutral-200 shadow-2xl md:shadow-none"
+      :class="[
+        isSidebarOpen 
+          ? 'translate-x-0 w-[300px] sm:w-[360px] md:w-[400px]' 
+          : '-translate-x-full md:translate-x-0 md:w-16'
+      ]"
     >
       <div class="p-4 border-b border-neutral-200 flex items-center justify-between h-16 shrink-0">
         <div v-if="isSidebarOpen" class="flex items-center gap-2 overflow-hidden">
@@ -250,6 +276,7 @@ onMounted(async () => {
         <button 
           @click="isSidebarOpen = !isSidebarOpen"
           class="p-2 hover:bg-neutral-100 rounded-lg transition-colors shrink-0"
+          :class="!isSidebarOpen ? 'w-full flex justify-center' : ''"
         >
           <LayoutDashboard class="w-5 h-5" />
         </button>
@@ -310,36 +337,50 @@ onMounted(async () => {
     </aside>
 
     <!-- --- MAP SURFACE --- -->
-    <main class="flex-1 relative">
-      <div id="map-container" class="w-full h-full z-10"></div>
+    <main class="flex-1 w-full h-full relative z-10">
+      <div id="map-container" class="absolute inset-0 w-full h-full"></div>
 
       <!-- --- TOP BAR --- -->
       <div class="absolute top-4 left-4 right-4 flex justify-between items-center pointer-events-none z-20">
-        <div class="bg-white/80 backdrop-blur-md px-4 py-2 rounded-full border border-white/50 shadow-lg flex items-center gap-3 pointer-events-auto">
-          <span class="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-          <p class="text-xs font-bold uppercase tracking-tight text-neutral-700">Jl. Proklamasi - PJU Monitor Live</p>
-          <div class="h-4 w-[1px] bg-neutral-300" />
-          <p class="text-[10px] font-mono text-neutral-500">Kuantan Tengah</p>
+        <div class="bg-white/90 backdrop-blur-md px-4 py-2.5 rounded-full border border-neutral-100 shadow-md flex items-center gap-2 pointer-events-auto max-w-[85%] sm:max-w-none">
+          <span class="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse shrink-0" />
+          <p class="text-[10px] md:text-xs font-bold uppercase tracking-tight text-neutral-700 truncate">Jl. Proklamasi - PJU Monitor Live</p>
+          <div class="h-3 w-[1px] bg-neutral-300 shrink-0" />
+          <p class="text-[9px] md:text-[10px] font-mono text-neutral-500 shrink-0">Kuantan Tengah</p>
         </div>
       </div>
+
+      <!-- --- FLOATING FLOOP CARD LIST TOGGLE FOR MOBILE --- -->
+      <div class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 md:hidden pointer-events-none">
+        <button 
+          @click="isSidebarOpen = !isSidebarOpen"
+          class="pointer-events-auto bg-neutral-900 border border-neutral-800 text-white font-bold px-6 py-3.5 rounded-full flex items-center gap-2.5 shadow-xl hover:bg-neutral-800 transition-all active:scale-95 text-xs tracking-wider uppercase"
+        >
+          <LayoutDashboard class="w-4 h-4 text-amber-500 animate-bounce" />
+          <span>{{ isSidebarOpen ? 'Tutup Daftar' : 'Daftar PJU (11)' }}</span>
+        </button>
+      </div>
       
-      <!-- --- DETAIL PANEL --- -->
+      <!-- --- DETAIL PANEL (BOTTOM SHEET on Mobile / SLIDE PANEL on Desktop) --- -->
       <Transition
         enter-active-class="transform transition ease-out duration-300"
-        enter-from-class="translate-x-full"
-        enter-to-class="translate-x-0"
+        enter-from-class="translate-y-full md:translate-y-0 md:translate-x-full"
+        enter-to-class="translate-y-0 md:translate-x-0"
         leave-active-class="transform transition ease-in duration-300"
-        leave-from-class="translate-x-0"
-        leave-to-class="translate-x-full"
+        leave-from-class="translate-y-0 md:translate-x-0"
+        leave-to-class="translate-y-full md:translate-y-0 md:translate-x-full"
       >
         <div 
           v-if="selectedPJU"
-          class="absolute top-0 right-0 h-full w-[400px] bg-white border-l border-neutral-200 shadow-2xl z-30 flex flex-col"
+          class="absolute bottom-0 md:top-0 right-0 h-[80vh] md:h-full w-full md:w-[400px] bg-white border-t md:border-t-0 md:border-l border-neutral-200 shadow-2xl z-40 flex flex-col rounded-t-3xl md:rounded-t-none"
         >
-          <div class="p-6 border-b border-neutral-100 flex items-center justify-between h-16 shrink-0">
+          <!-- Pull-down decorative handle for mobile -->
+          <div class="w-12 h-1 bg-neutral-200 rounded-full mx-auto my-3 md:hidden shrink-0"></div>
+
+          <div class="px-6 pb-4 md:pt-6 border-b border-neutral-100 flex items-center justify-between h-14 md:h-16 shrink-0">
             <div class="overflow-hidden">
               <p class="text-[10px] font-bold text-neutral-400 uppercase tracking-[0.2em] mb-0.5">Tiang ID: {{ selectedPJU.id }}</p>
-              <h2 class="text-lg font-bold italic tracking-tight truncate">{{ selectedPJU.location }}</h2>
+              <h2 class="text-base md:text-lg font-bold italic tracking-tight truncate">{{ selectedPJU.location }}</h2>
             </div>
             <button 
               @click="selectedPJU = null"
@@ -364,32 +405,32 @@ onMounted(async () => {
               </div>
             </div>
 
-            <div class="p-6">
-              <div class="flex items-center gap-4 mb-8">
+            <div class="p-6 text-neutral-800">
+              <div class="flex items-center gap-4 mb-6">
                 <div class="flex-1">
                   <p class="text-[10px] font-bold text-neutral-400 uppercase mb-1">Status Sistem</p>
                   <div class="flex items-center gap-2 p-2 rounded-lg border transition-colors"
                     :class="selectedPJU.condition === 'Baik' ? 'bg-emerald-50 border-emerald-100 text-emerald-700' : 'bg-neutral-100 border-neutral-200 text-neutral-900'"
                   >
                     <Lightbulb class="w-4 h-4" :fill="selectedPJU.condition === 'Baik' ? 'currentColor' : 'none'" />
-                    <span class="text-sm font-bold">{{ selectedPJU.condition === 'Baik' ? 'PENERANGAN AKTIF' : 'PADAM / RUSAK' }}</span>
+                    <span class="text-xs md:text-sm font-bold">{{ selectedPJU.condition === 'Baik' ? 'PENERANGAN AKTIF' : 'PADAM / RUSAK' }}</span>
                   </div>
                 </div>
                 <div class="flex-1">
                   <p class="text-[10px] font-bold text-neutral-400 uppercase mb-1">Status Pekerjaan</p>
                   <div class="flex items-center gap-2 bg-neutral-50 p-2 rounded-lg border border-neutral-100">
-                     <span class="text-sm font-bold">{{ selectedPJU.status }}</span>
+                     <span class="text-xs md:text-sm font-bold text-neutral-700">{{ selectedPJU.status }}</span>
                   </div>
                 </div>
               </div>
 
               <div class="space-y-6">
                 <section v-if="selectedPJU.condition === 'Rusak'">
-                  <h4 class="flex items-center gap-2 text-xs font-bold uppercase text-neutral-900 mb-3">
-                    <AlertTriangle class="w-3 h-3" />
+                  <h4 class="flex items-center gap-2 text-xs font-bold uppercase text-neutral-900 mb-2">
+                    <AlertTriangle class="w-3.5 h-3.5 text-amber-500" />
                     Analisis Kerusakan
                   </h4>
-                  <p class="text-neutral-700 leading-relaxed font-serif italic text-lg bg-neutral-50 p-4 rounded-xl border border-neutral-200">
+                  <p class="text-neutral-700 leading-relaxed font-serif italic text-base md:text-lg bg-neutral-50 p-4 rounded-xl border border-neutral-200">
                     "{{ selectedPJU.issue }}"
                   </p>
                 </section>
@@ -409,7 +450,7 @@ onMounted(async () => {
 
                 <section>
                   <p class="text-[10px] font-bold text-neutral-400 uppercase mb-1">Koordinat GPS</p>
-                  <code class="text-[10px] flex items-center gap-1 bg-neutral-900 text-white p-2 rounded-md font-mono">
+                  <code class="text-[10px] flex items-center gap-1 bg-neutral-900 text-white p-2.5 rounded-md font-mono">
                     {{ selectedPJU.coordinates[0].toFixed(6) }}, {{ selectedPJU.coordinates[1].toFixed(6) }}
                   </code>
                 </section>
@@ -417,8 +458,8 @@ onMounted(async () => {
             </div>
           </div>
 
-          <div class="p-6 border-t border-neutral-100 shrink-0">
-            <button class="w-full bg-amber-500 text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 hover:bg-amber-600 transition-colors shadow-lg">
+          <div class="p-6 border-t border-neutral-100 shrink-0 bg-white">
+            <button class="w-full bg-amber-500 text-white font-bold py-3.5 rounded-2xl flex items-center justify-center gap-2 hover:bg-amber-600 transition-colors shadow-md text-sm">
               <span>ORDER PERBAIKAN</span>
               <ChevronRight class="w-4 h-4" />
             </button>
