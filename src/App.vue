@@ -191,7 +191,7 @@ const initMap = () => {
     const icon = L.divIcon({
       className: 'custom-marker',
       html: `
-        <div style="
+        <div data-pju-id="${item.id}" style="
           background-color: white; 
           width: 32px; 
           height: 32px; 
@@ -202,10 +202,13 @@ const initMap = () => {
           box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
           border: 2px solid ${color};
           transition: all 0.2s ease;
+          pointer-events: auto !important;
+          cursor: pointer !important;
         ">
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="${item.condition === 'Baik' ? color : 'none'}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/>
-            <path d="M9 18h6"/><path d="M10 22h4"/>
+          <svg style="pointer-events: none;" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="${item.condition === 'Baik' ? color : 'none'}" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"></path>
+            <path d="M9 18h6"></path>
+            <path d="M10 22h4"></path>
           </svg>
         </div>
       `,
@@ -214,10 +217,54 @@ const initMap = () => {
     });
 
     const marker = L.marker(item.coordinates, { icon }).addTo(map!);
-    marker.on('click', () => {
+    
+    // 1. Standard Leaflet event listener
+    marker.on('click', (e) => {
+      if (e.originalEvent) {
+        e.originalEvent.stopPropagation();
+      }
       selectItem(item);
     });
+
+    // 2. Direct native DOM listener as ultimate fallback
+    nextTick(() => {
+      const el = marker.getElement();
+      if (el) {
+        el.setAttribute('data-pju-id', item.id);
+        const handler = (e: Event) => {
+          e.stopPropagation();
+          e.preventDefault();
+          selectItem(item);
+        };
+        // Add listeners directly on the mounted marker node
+        el.addEventListener('click', handler);
+        el.addEventListener('touchstart', handler, { passive: false });
+      }
+    });
+
     markers.push(marker);
+  });
+
+  // 3. Bulletproof delegated listener on map container for any touch/click event that slips through
+  nextTick(() => {
+    const mapContainer = document.getElementById('map-container');
+    if (mapContainer) {
+      const handleMarkerTap = (e: Event) => {
+        const target = e.target as HTMLElement;
+        const markerDiv = target.closest('[data-pju-id]');
+        if (markerDiv) {
+          const id = markerDiv.getAttribute('data-pju-id');
+          const found = SAMPLE_DATA.find(x => x.id === id);
+          if (found) {
+            e.stopPropagation();
+            e.preventDefault();
+            selectItem(found);
+          }
+        }
+      };
+      mapContainer.addEventListener('click', handleMarkerTap, { capture: true });
+      mapContainer.addEventListener('touchstart', handleMarkerTap, { capture: true, passive: false });
+    }
   });
 };
 
@@ -362,6 +409,22 @@ onMounted(async () => {
         </button>
       </div>
       
+      <!-- --- BACKDROP FOR DETAIL PANEL ON MOBILE --- -->
+      <Transition
+        enter-active-class="transition-opacity ease-out duration-300"
+        enter-from-class="opacity-0"
+        enter-to-class="opacity-100"
+        leave-active-class="transition-opacity ease-in duration-300"
+        leave-from-class="opacity-100"
+        leave-to-class="opacity-0"
+      >
+        <div 
+          v-if="selectedPJU"
+          @click="selectedPJU = null"
+          class="fixed inset-0 bg-neutral-950/40 backdrop-blur-[1px] z-[1040] md:hidden pointer-events-auto"
+        ></div>
+      </Transition>
+      
       <!-- --- DETAIL PANEL (BOTTOM SHEET on Mobile / SLIDE PANEL on Desktop) --- -->
       <Transition
         enter-active-class="transform transition ease-out duration-300"
@@ -373,7 +436,7 @@ onMounted(async () => {
       >
         <div 
           v-if="selectedPJU"
-          class="absolute bottom-0 md:top-0 right-0 h-[80vh] md:h-full w-full md:w-[400px] bg-white border-t md:border-t-0 md:border-l border-neutral-200 shadow-2xl z-40 flex flex-col rounded-t-3xl md:rounded-t-none"
+          class="absolute bottom-0 md:top-0 right-0 h-[80vh] md:h-full w-full md:w-[400px] bg-white border-t md:border-t-0 md:border-l border-neutral-200 shadow-2xl z-[1050] flex flex-col rounded-t-3xl md:rounded-t-none"
         >
           <!-- Pull-down decorative handle for mobile -->
           <div class="w-12 h-1 bg-neutral-200 rounded-full mx-auto my-3 md:hidden shrink-0"></div>
